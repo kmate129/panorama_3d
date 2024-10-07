@@ -34,7 +34,7 @@ def _dicom_to_png(dicom_file, png_file):
 
     print(max_val)
     print(min_val)
-    w = png.Writer(shape[0], shape[1], greyscale=True, bitdepth=16)
+    w = png.Writer(shape[0], shape[1], greyscale=True, bitdepth=8)
     w.write(png_file, image_2d)
 
 
