@@ -1,6 +1,7 @@
 import os
 import png
 import pydicom as dicom
+import cv2
 
 def _dicom_to_png(dicom_file, png_file):
     """
@@ -81,3 +82,24 @@ def convert_folder(dicom_folder, png_folder):
                     print('SUCCESS>', dicom_file_path, '-->', png_file_path)
                 except Exception as e:
                     print('FAIL>', dicom_file_path, '-->', png_file_path, ':', e)
+
+
+def read_png(filename):
+    """
+    Reads a PNG image using OpenCV and converts it to a numpy array.
+    """
+    # A kép beolvasása, 0 flag, hogy szürkeárnyalatos képet kapjunk
+    image = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+
+    # Ellenőrizzük a kép dimenzióját
+    print("Beolvasott kép mérete:", image.shape)
+
+    return image  # Kép visszaadása, 2D tömbként
+
+
+def save_png(image, filename):
+    """
+    Saves a numpy array as a PNG file using OpenCV.
+    """
+    # OpenCV automatikusan kezeli a uint8 típusú képeket
+    cv2.imwrite(filename, image)
