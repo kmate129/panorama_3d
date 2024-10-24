@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import png
 import pydicom as dicom
 import cv2
@@ -84,22 +85,94 @@ def convert_folder(dicom_folder, png_folder):
                     print('FAIL>', dicom_file_path, '-->', png_file_path, ':', e)
 
 
-def read_png(filename):
+def read_png(filename, log=True):
     """
     Reads a PNG image using OpenCV and converts it to a numpy array.
     """
-    # A kép beolvasása, 0 flag, hogy szürkeárnyalatos képet kapjunk
     image = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+    if log:
+        print("Beolvasott kép mérete:", image.shape)
 
-    # Ellenőrizzük a kép dimenzióját
-    print("Beolvasott kép mérete:", image.shape)
-
-    return image  # Kép visszaadása, 2D tömbként
+    return image
 
 
 def save_png(image, filename):
     """
     Saves a numpy array as a PNG file using OpenCV.
     """
-    # OpenCV automatikusan kezeli a uint8 típusú képeket
     cv2.imwrite(filename, image)
+
+
+def scale_to_0_255(image):
+    """
+    Scales the pixel values of an image to the range [0, 255].
+    This function takes an image with arbitrary pixel values and scales them
+    linearly so that the minimum pixel value becomes 0 and the maximum pixel
+    value becomes 255. The resulting image is returned as an array of type
+    uint8.
+    Parameters:
+        image (numpy.ndarray): The input image to be scaled.
+    Returns:
+        numpy.ndarray: The scaled image with pixel values in the range [0, 255].
+    """
+    min_pixel = np.min(image)
+    max_pixel = np.max(image)
+    scaled_image = 255 * (image - min_pixel) / (max_pixel - min_pixel)
+    
+    return scaled_image.astype(np.uint8)
+
+
+def from_folder_to_3d_grid(folder, number_of_images):
+    """
+    Reads all PNG images from a folder and stacks them along the z-axis to create a 3D matrix.
+    This function reads all PNG images from a folder, sorts them by filename, and stacks them
+    along the z-axis to create a 3D matrix. The resulting matrix has dimensions (height, width, depth),
+    where the depth corresponds to the number of images in the folder.
+    Parameters:
+        folder (str): The path to the folder containing the PNG images.
+    Returns:
+        numpy.ndarray: A 3D matrix containing the pixel values of the PNG images.
+    """
+    files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+    files.remove('.DS_Store')
+    files.sort()
+
+    files2 = []
+    for i in range(number_of_images):
+        files2.append(files[i])
+
+    if not files:
+        raise ValueError("Nincs fájl a megadott mappában.")
+    
+    first_image = read_png(os.path.join(folder, files2[0]), log=False)
+    
+    height, width = first_image.shape
+    
+    num_images = len(files2)
+    image_stack = np.zeros((num_images, height, width), dtype=np.uint8)
+
+    for i, filename in enumerate(files2):
+        img_path = os.path.join(folder, filename)
+        img = read_png(img_path)
+        image_stack[i] = img
+
+    return image_stack
+
+
+def save_to_obj(verts, faces, normals, filename):
+    """
+    Saves vertices and faces to an .obj file.
+    
+    verts: np.ndarray of shape (n_verts, 3), where each row is a vertex [x, y, z]
+    faces: np.ndarray of shape (n_faces, 3), where each row contains the indices of vertices forming a triangle
+    filename: str, the name of the output file
+    """
+    with open(filename, 'w') as file:
+        for vert in verts:
+            file.write(f"v {vert[0]} {vert[1]} {vert[2]}\n")
+
+        for item in normals:
+            file.write("vn {0} {1} {2}\n".format(item[0],item[1],item[2]))
+        
+        for face in faces:
+            file.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
