@@ -1,11 +1,12 @@
 import collections
+from typing import Optional, Tuple
 import numpy as np
 import nrrd
 import matplotlib.pyplot as plt
 import time
 from skimage.measure import marching_cubes
 from itkwidgets import view, compare, cm
-from numpy import cos, pi
+from numpy import cos, ndarray, pi
 import itkwidgets
 import pyvista as pv
 import vtk
@@ -272,17 +273,45 @@ triTable =[
             [0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
             [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]]
 
-def interpolation_value(v1,v2,t):
-    if (v1==v2 and t==v1):
-        return 0
-    elif (t > v1 and t > v2):
+def interpolation_value(v1: float, v2: float, t: float) -> Optional[float]:
+    """
+    Calculate the interpolation value for a given point `t` between two values `v1` and `v2`.
+    Parameters:
+        v1 (float): The first value.
+        v2 (float): The second value.
+        t (float): The target value for which the interpolation is calculated.
+    Returns:
+        float: The interpolation value if `t` lies between `v1` and `v2`, or if `v1` equals `v2` and `t` equals `v1`.
+           Returns 0.5 if `v1` equals `v2` and `t` equals `v1`.
+           Returns None if `t` is outside the range defined by `v1` and `v2`, or if `v1` equals `v2` and `t` does not equal `v1`.
+    """
+    if v1 == v2:
+        if t == v1:
+            return 0.5
+        else:
+            return None
+
+    if (t > v1 and t > v2) or (t < v1 and t < v2):
         return None
-    elif (t < v1 and t < v2):
-        return None
-    else:
-        return (v1-t)/(v1-v2)
     
-def linear_interpolation(edge,cells,top,left,depth,thres):
+    return (t - v1) / (v2 - v1)
+
+
+def linear_interpolation(edge: int, cells: ndarray, top: int, left: int, depth: int, thres: float) -> Optional[Tuple[int, int, int]]:
+    """
+    Perform linear interpolation to find a point on the edge of a cell where the threshold is crossed.
+
+    Parameters:
+        edge (int): The edge index (0-11) on which to perform the interpolation.
+        cells (numpy.ndarray): A 3D array representing the scalar field values at each cell.
+        top (int): The top coordinate of the cell.
+        left (int): The left coordinate of the cell.
+        depth (int): The depth coordinate of the cell.
+        thres (float): The threshold value for interpolation.
+
+    Returns:
+        tuple or None: The interpolated point as a tuple (x, y, z) if the threshold is crossed, otherwise None.
+    """
     tval = 0
     point = None
 
@@ -417,87 +446,116 @@ def linear_interpolation(edge,cells,top,left,depth,thres):
             point = (left,top+1,depth+tval)
             cache[((left,top+1,depth),(left,top+1,depth+1))] = point
         return point
-    
-def getContourCase(top,left,depth, thres,cells):
-    x = 0  
-    if (thres < cells[left,top+1,depth+1]):
-            x = 128
-    if (thres < cells[left+1,top+1,depth+1]):
-            x = x + 64
-    if (thres < cells[left+1,top,depth+1]):
-            x = x + 32
-    if (thres < cells[left,top,depth+1]):
-            x = x + 16
-    if (thres < cells[left,top+1,depth]):
-            x = x + 8
-    if (thres < cells[left+1,top+1,depth]):
-            x = x + 4
-    if (thres < cells[left+1,top,depth]):
-            x = x + 2
-    if (thres < cells[left,top,depth]):
-            x = x + 1
-    case_value = triTable[x] 
-    return case_value  
 
-def getContourSegments(thres,cube_matrix):
-    rows =  cube_matrix.shape[0]
-    cols = cube_matrix.shape[1]
-    zcols = cube_matrix.shape[2]
+
+def get_contour_case(top: int, left: int, depth: int, thres: float, cells: ndarray) -> int:
+    """
+    Determines the contour case for a given cell in a 3D grid based on a threshold value.
+
+    Args:
+        top (int): The top index of the cell in the grid.
+        left (int): The left index of the cell in the grid.
+        depth (int): The depth index of the cell in the grid.
+        thres (float): The threshold value to compare against the cell values.
+        cells (numpy.ndarray): A 3D array representing the grid of cell values.
+
+    Returns:
+        int: The contour case value derived from the triTable based on the threshold comparison.
+    """
+    x = 0  
+    if thres <= cells[left, top+1, depth+1]:
+        x += 128
+    if thres <= cells[left+1, top+1, depth+1]:
+        x += 64
+    if thres <= cells[left+1, top, depth+1]:
+        x += 32
+    if thres <= cells[left, top, depth+1]:
+        x += 16
+    if thres <= cells[left, top+1, depth]:
+        x += 8
+    if thres <= cells[left+1, top+1, depth]:
+        x += 4
+    if thres <= cells[left+1, top, depth]:
+        x += 2
+    if thres <= cells[left, top, depth]:
+        x += 1
+
+    case_value = triTable[x]
+    return case_value 
+
+
+def get_contour_segments(thres, cube_matrix):
+    rows, cols, zcols = cube_matrix.shape
     vertex_counter = 0
     vertex_array = collections.OrderedDict()
     face_array = []
-    t1 = time.time()
+
+    overall_start = time.perf_counter()
+    interpolation_time = 0
+    triangle_gen_time = 0
+
     for left in range(0, rows-1):
         for top in range(0, cols-1):
             for depth in range(0, zcols-1):
-                case_val = getContourCase(top,left,depth,thres,cube_matrix)
+                case_val = get_contour_case(top, left, depth, thres, cube_matrix)
                 k = 0
-                while (case_val [k] != -1):
-                    v1 =  linear_interpolation(case_val [k],cube_matrix,top,left,depth,thres)
+                while case_val[k] != -1:
+                    interpolation_start = time.perf_counter()
+                    v1 = cache.get((left, top, depth, case_val[k]))
                     if v1 is None:
-                        k = k + 3
-                        continue
-                    v2  = linear_interpolation(case_val [k+1],cube_matrix,top,left,depth,thres)
-                    if v2 is None:
-                        k = k + 3
-                        continue
-                    v3 =  linear_interpolation(case_val [k+2],cube_matrix,top,left,depth,thres)
-                    if v3 is None:
-                        k = k + 3
+                        v1 = linear_interpolation(case_val[k], cube_matrix, top, left, depth, thres)
+                        if v1 is not None:
+                            cache[(left, top, depth, case_val[k])] = v1
+                    if v1 is None:
+                        k += 3
                         continue
 
-                    k = k + 3
+                    v2 = cache.get((left, top, depth, case_val[k+1]))
+                    if v2 is None:
+                        v2 = linear_interpolation(case_val[k+1], cube_matrix, top, left, depth, thres)
+                        if v2 is not None:
+                            cache[(left, top, depth, case_val[k+1])] = v2
+                    if v2 is None:
+                        k += 3
+                        continue
+
+                    v3 = cache.get((left, top, depth, case_val[k+2]))
+                    if v3 is None:
+                        v3 = linear_interpolation(case_val[k+2], cube_matrix, top, left, depth, thres)
+                        if v3 is not None:
+                            cache[(left, top, depth, case_val[k+2])] = v3
+                    if v3 is None:
+                        k += 3
+                        continue
+
+                    interpolation_time += time.perf_counter() - interpolation_start
+                    k += 3
+                    triangle_start = time.perf_counter()
+
                     tmp = [3, 0, 0, 0]
-                    if v1 not in vertex_array:
-                        vertex_array[v1] = [vertex_counter, v1[0], v1[1], v1[2]]
-                        tmp[1] = vertex_counter
-                        vertex_counter += 1
-                    else:
-                        tmp[1] = vertex_array[v1][0]
-                    if v2 not in vertex_array:
-                        vertex_array[v2] = [vertex_counter, v2[0], v2[1], v2[2]]
-                        tmp[2] = vertex_counter
-                        vertex_counter += 1
-                    else:
-                        tmp[2] = vertex_array[v2][0]
-                    if v3 not in vertex_array:
-                        vertex_array[v3] = [vertex_counter, v3[0], v3[1], v3[2]]
-                        tmp[3] = vertex_counter
-                        vertex_counter += 1
-                    else:
-                        tmp[3] = vertex_array[v3][0]
+                    for vi, v in enumerate([v1, v2, v3]):
+                        if v not in vertex_array:
+                            vertex_array[v] = [vertex_counter, v[0], v[1], v[2]]
+                            tmp[vi+1] = vertex_counter
+                            vertex_counter += 1
+                        else:
+                            tmp[vi+1] = vertex_array[v][0]
+                    
                     face_array.append(tmp)
-    t2 = time.time()
-    print("\nTime taken by algorithm\n"+'-'*40+"\n{} s".format(t2-t1))
+                    triangle_gen_time += time.perf_counter() - triangle_start
+    overall_end = time.perf_counter()
+    print(f"\nOverall Time taken by algorithm\n{'-'*40}\n{overall_end - overall_start} s")
+    print(f"Interpolation Time: {interpolation_time} s")
+    print(f"Triangle Generation Time: {triangle_gen_time} s")
     vertex_array = np.array(list(vertex_array.values()))
     return vertex_array[:,1:], np.array(face_array)
 
-ct = from_folder_to_3d_grid('original_png_8bit', 5)
+ct = from_folder_to_3d_grid('original_png_8bit', 10)
 print(ct.shape)
 print(type(ct), ct.dtype)
 
 iso_val=150
-verts,faces=getContourSegments(iso_val,ct)
+verts,faces=get_contour_segments(iso_val,ct)
 
 #vol
 celltypes = np.empty(faces.shape[0], dtype=np.uint8)
