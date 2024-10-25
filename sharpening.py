@@ -45,7 +45,7 @@ def enhance_image(original_image, A):
 
 A_value = -0.5
 input_folder = "denoised_7x7"
-output_folder = "shapened_m0dot5"
+output_folder = "sharpened_m0dot5"
 
 os.makedirs(output_folder, exist_ok=True)
 
