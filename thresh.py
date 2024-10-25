@@ -1,7 +1,8 @@
+import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import read_png
+from utils import read_png, save_png
 
 
 def threshold(image, threshold_value):
@@ -30,19 +31,43 @@ def threshold(image, threshold_value):
     return binary_image
 
 
-image = read_png('denoised_5x5/9504i5c9jde103011350.png')
-threshold_value = 161
-
-binary_image = threshold(image, threshold_value)
-
-plt.subplot(1, 2, 1)
-plt.title('Eredeti kép')
-plt.imshow(image, cmap='gray')
+im = read_png('sharpened_m0dot5/9504i5c9jde103011486.png')
+filtered_im = threshold(im, 168)
+plt.imshow(filtered_im, cmap='gray')
 plt.axis('off')
-
-plt.subplot(1, 2, 2)
-plt.title('Bináris kép')
-plt.imshow(binary_image, cmap='gray')
-plt.axis('off')
-
 plt.show()
+
+
+threshold_value = 168
+input_folder = "sharpened_m0dot5"
+output_folder = "thresholded_163"
+
+os.makedirs(output_folder, exist_ok=True)
+
+for sub_folder, subdirs, files in os.walk(input_folder):
+    for file in files:
+        file_path = os.path.join(sub_folder, file)
+
+        if os.path.isfile(file_path):
+            rel_path = os.path.relpath(sub_folder, input_folder)
+            output_folder_path = os.path.join(output_folder, rel_path)
+            
+            if not os.path.exists(output_folder_path):
+                os.makedirs(output_folder_path)
+                
+            if not file.lower().endswith('.png'):
+                output_file = f'{file}.png'
+            else:
+                output_file = file
+
+            output_file_path = os.path.join(output_folder_path, output_file)
+
+            try:
+                im = read_png(file_path)
+                filtered_im = threshold(im, threshold_value)
+
+                save_png(filtered_im, output_file_path)
+
+                print('SUCCESS>', file_path, '-->', output_file_path)
+            except Exception as e:
+                print('FAIL>', file_path, '-->', output_file_path, ':', e)
