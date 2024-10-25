@@ -540,7 +540,7 @@ def get_contour_segments(thres, cube_matrix):
                             vertex_counter += 1
                         else:
                             tmp[vi+1] = vertex_array[v][0]
-                    
+                    print(f"Generated face: {tmp}")
                     face_array.append(tmp)
                     triangle_gen_time += time.perf_counter() - triangle_start
     overall_end = time.perf_counter()
@@ -550,45 +550,28 @@ def get_contour_segments(thres, cube_matrix):
     vertex_array = np.array(list(vertex_array.values()))
     return vertex_array[:,1:], np.array(face_array)
 
-ct = from_folder_to_3d_grid('original_png_8bit', 10)
+ct = from_folder_to_3d_grid('original_png_8bit', 687)
 print(ct.shape)
 print(type(ct), ct.dtype)
 
 iso_val=150
 verts,faces=get_contour_segments(iso_val,ct)
 
-#vol
 celltypes = np.empty(faces.shape[0], dtype=np.uint8)
 celltypes[:] = vtk.VTK_TRIANGLE
 grid = pv.UnstructuredGrid(faces.ravel(), celltypes, verts)
-# call itkwidget
-poly_data = pv.PolyData(verts, faces)
-
-# Compute normals
-poly_data.compute_normals(inplace=True)
-
-# Clean the grid
-poly_data = poly_data.clean()
-normals = poly_data['Normals']
-view(geometries=grid)
-
-print(f"Number of vertices: {len(verts)}")
-print(f"Face array (first 10): {faces[:10]}")
+cleaned_grid = grid.clean()
 
 plotter = pv.Plotter()
-
-# Add the grid (which contains vertices and faces) to the plotter
-plotter.add_mesh(grid, color='white')
-plotter.show()
+plotter.add_mesh(cleaned_grid, color='white')
+#plotter.show()
 
 stl_mesh = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
-
-# Iterate over each face, and assign the corresponding vertices
 for i, f in enumerate(faces):
     for j in range(3):
-        stl_mesh.vectors[i][j] = verts[f[j], :]  # Use vertex indices from faces to assign vectors
+        stl_mesh.vectors[i][j] = verts[f[j], :]
 
-# Save the mesh to an STL file
-stl_mesh.save('ellipsoid_model.stl')
-output_path = "output_model.obj"  # Specify the output filename
-save_to_obj(verts, faces, normals, output_path)
+polydata = cleaned_grid.extract_surface()
+
+polydata.save('original_skull.stl')
+save_to_obj(verts, faces, "original_skull.obj")
