@@ -1,7 +1,5 @@
 import os
-import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 from utils import read_png, save_png
 
 
@@ -29,13 +27,6 @@ def threshold(image, threshold_value):
                 binary_image[i, j] = 0
 
     return binary_image
-
-
-im = read_png('sharpened_m0dot5/9504i5c9jde103011486.png')
-filtered_im = threshold(im, 168)
-plt.imshow(filtered_im, cmap='gray')
-plt.axis('off')
-plt.show()
 
 
 threshold_value = 168
