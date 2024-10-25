@@ -159,20 +159,21 @@ def from_folder_to_3d_grid(folder, number_of_images):
     return image_stack
 
 
-def save_to_obj(verts, faces, normals, filename):
+def save_to_obj(verts, faces, filename):
     """
     Saves vertices and faces to an .obj file.
     
-    verts: np.ndarray of shape (n_verts, 3), where each row is a vertex [x, y, z]
-    faces: np.ndarray of shape (n_faces, 3), where each row contains the indices of vertices forming a triangle
-    filename: str, the name of the output file
+    verts: 
+        np.ndarray of shape (n_verts, 3), where each row is a vertex [x, y, z]
+    faces: 
+        np.ndarray of shape (n_faces, 4), where each row contains the indices of vertices forming a triangle
+    filename: 
+        str, the name of the output file
     """
     with open(filename, 'w') as file:
         for vert in verts:
             file.write(f"v {vert[0]} {vert[1]} {vert[2]}\n")
 
-        for item in normals:
-            file.write("vn {0} {1} {2}\n".format(item[0],item[1],item[2]))
-        
         for face in faces:
-            file.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
+            print(face)
+            file.write(f"f {face[1] + 1} {face[2] + 1} {face[3] + 1}\n")
