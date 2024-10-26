@@ -122,36 +122,39 @@ def scale_to_0_255(image):
     return scaled_image.astype(np.uint8)
 
 
-def from_folder_to_3d_grid(folder, number_of_images):
+def from_folder_to_3d_grid(folder, num_images, start_index=0):
     """
-    Reads all PNG images from a folder and stacks them along the z-axis to create a 3D matrix.
-    This function reads all PNG images from a folder, sorts them by filename, and stacks them
-    along the z-axis to create a 3D matrix. The resulting matrix has dimensions (height, width, depth),
-    where the depth corresponds to the number of images in the folder.
+    Reads a specified range of PNG images from a folder and stacks them along the z-axis to create a 3D matrix.
+    This function reads PNG images from a folder, sorts them by filename, and stacks the specified range
+    of images along the z-axis to create a 3D matrix. The resulting matrix has dimensions (height, width, depth),
+    where the depth corresponds to the number of images in the specified range.
+    
     Parameters:
         folder (str): The path to the folder containing the PNG images.
+        start_index (int): The starting index of the images to process.
+        num_images (int): The number of images to process starting from the start_index.
+        
     Returns:
         numpy.ndarray: A 3D matrix containing the pixel values of the PNG images.
     """
     files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
-    files.remove('.DS_Store')
+    try:
+        files.remove('.DS_Store')
+    except:
+        pass
     files.sort()
 
-    files2 = []
-    for i in range(number_of_images):
-        files2.append(files[i])
+    selected_files = files[start_index:start_index + num_images]
+    if len(selected_files) < num_images:
+        raise ValueError("A megadott tartományban nem található elegendő kép.")
 
-    if not files:
-        raise ValueError("Nincs fájl a megadott mappában.")
-    
-    first_image = read_png(os.path.join(folder, files2[0]), log=False)
-    
+    first_image = read_png(os.path.join(folder, selected_files[0]), log=False)
     height, width = first_image.shape
     
-    num_images = len(files2)
+    num_images = len(selected_files)
     image_stack = np.zeros((num_images, height, width), dtype=np.uint8)
 
-    for i, filename in enumerate(files2):
+    for i, filename in enumerate(selected_files):
         img_path = os.path.join(folder, filename)
         img = read_png(img_path)
         image_stack[i] = img
