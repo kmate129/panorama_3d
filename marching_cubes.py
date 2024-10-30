@@ -550,7 +550,7 @@ def get_contour_segments(thres, cube_matrix):
     vertex_array = np.array(list(vertex_array.values()))
     return vertex_array[:,1:], np.array(face_array)
 
-ct = from_folder_to_3d_grid('original_png_8bit', 687)
+ct = from_folder_to_3d_grid('original_png_8bit', 688)
 print(ct.shape)
 print(type(ct), ct.dtype)
 
