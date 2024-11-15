@@ -19,25 +19,18 @@ def _dicom_to_png(dicom_file, png_file):
     The pixel values are scaled to fit within the PNG format's bit depth.
     """
     plan = dicom.dcmread(dicom_file)
-    shape = plan.pixel_array.shape
+    pixel_array = plan.pixel_array
+    shape = pixel_array.shape
 
-    image_2d = []
-    max_val = 0
-    min_val = 100000
-    for row in plan.pixel_array:
-        pixels = []
-        for col in row:
-            pixels.append(col)
-            if col > max_val: 
-                max_val = col
-            if col < min_val:
-                min_val = col
-        image_2d.append(pixels)
+    min_val = pixel_array.min()
+    max_val = pixel_array.max()
 
-    print(max_val)
-    print(min_val)
-    w = png.Writer(shape[0], shape[1], greyscale=True, bitdepth=8)
-    w.write(png_file, image_2d)
+    image_2d = ((pixel_array - min_val) / (max_val - min_val) * 65535).astype(int)
+
+    image_2d_list = image_2d.tolist()
+
+    w = png.Writer(shape[1], shape[0], greyscale=True, bitdepth=16)
+    w.write(png_file, image_2d_list)
 
 
 def convert_file(dicom_file_path, png_file_path):
@@ -55,28 +48,30 @@ def convert_file(dicom_file_path, png_file_path):
     if not os.path.exists(dicom_file_path):
         raise Exception('File "%s" does not exists' % dicom_file_path)
 
-    dicom_file = open(dicom_file_path, 'rb')
-    png_file = open(png_file_path, 'wb')
-
-    _dicom_to_png(dicom_file, png_file)
-
-    png_file.close()
+    with open(dicom_file_path, 'rb') as dicom_file, open(png_file_path, 'wb') as png_file:
+        _dicom_to_png(dicom_file, png_file)
 
 
 def convert_folder(dicom_folder, png_folder):
-    os.makedirs(png_folder)
+    """
+    Converts all DICOM files in a folder (and its subfolders) to PNG files.
 
-    for sub_folder, subdirs, files in os.walk(dicom_folder):
-        for dicom_file in os.listdir(sub_folder):
+    Args:
+        dicom_folder (str): The root folder containing DICOM files.
+        png_folder (str): The root folder where PNG files will be saved.
+    """
+    os.makedirs(png_folder, exist_ok=True)
+
+    for sub_folder, _, files in os.walk(dicom_folder):
+        for dicom_file in files:
             dicom_file_path = os.path.join(sub_folder, dicom_file)
-
             if os.path.isfile(dicom_file_path):
-
                 rel_path = os.path.relpath(sub_folder, dicom_folder)
                 png_folder_path = os.path.join(png_folder, rel_path)
-                if not os.path.exists(png_folder_path):
-                    os.makedirs(png_folder_path)
-                png_file_path = os.path.join(png_folder_path, '%s.png' % dicom_file)
+                os.makedirs(png_folder_path, exist_ok=True)
+
+                file_name_without_ext = os.path.splitext(dicom_file)[0]
+                png_file_path = os.path.join(png_folder_path, f'{file_name_without_ext}.png')
 
                 try:
                     convert_file(dicom_file_path, png_file_path)
