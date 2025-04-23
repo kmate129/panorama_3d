@@ -1,13 +1,8 @@
 import collections
 from typing import Optional, Tuple
 import numpy as np
-import nrrd
-import matplotlib.pyplot as plt
 import time
-from skimage.measure import marching_cubes
-from itkwidgets import view, compare, cm
-from numpy import cos, ndarray, pi
-import itkwidgets
+from numpy import ndarray
 import pyvista as pv
 import vtk
 from stl import mesh
