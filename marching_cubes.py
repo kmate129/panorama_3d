@@ -6,8 +6,6 @@ from numpy import ndarray
 import pyvista as pv
 import vtk
 
-from utils import from_folder_to_3d_grid, save_to_obj
-
 triTable =[
             [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
             [0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
@@ -437,10 +435,6 @@ def get_contour_segments(thres, cube_matrix):
     vertex_array = collections.OrderedDict()
     face_array = []
 
-    overall_start = time.perf_counter()
-    interpolation_time = 0
-    triangle_gen_time = 0
-
     for left in range(0, rows-1):
         for top in range(0, cols-1):
             for depth in range(0, zcols-1):
@@ -463,9 +457,7 @@ def get_contour_segments(thres, cube_matrix):
                         k += 3
                         continue
 
-                    interpolation_time += time.perf_counter() - interpolation_start
                     k += 3
-                    triangle_start = time.perf_counter()
 
                     tmp = [3, 0, 0, 0]
                     for vi, v in enumerate([v1, v2, v3]):
@@ -473,31 +465,12 @@ def get_contour_segments(thres, cube_matrix):
                             vertex_array[v] = [vertex_counter, v[0], v[1], v[2]]
                             tmp[vi+1] = vertex_counter
                             vertex_counter += 1
-                            print(f"Generated vertex: {vertex_array[v]}")
+                            #print(f"Generated vertex: {vertex_array[v]}")
                         else:
                             tmp[vi+1] = vertex_array[v][0]
                     face_array.append(tmp)
-                    triangle_gen_time += time.perf_counter() - triangle_start
-    overall_end = time.perf_counter()
-    print(f"\nOverall Time taken by algorithm\n{'-'*40}\n{overall_end - overall_start} s")
-    print(f"Interpolation Time: {interpolation_time} s")
-    print(f"Triangle Generation Time: {triangle_gen_time} s")
     vertex_array = np.array(list(vertex_array.values()))
+    print(f"vertex_array shape: {vertex_array.shape}, type: {type(vertex_array)}")
+    if vertex_array.size == 0:
+        return np.empty((0, 2)), np.empty((0, 3), dtype=int)
     return vertex_array[:,1:], np.array(face_array)
-
-ct = from_folder_to_3d_grid('median_filtered_final', 687)
-print(ct.shape)
-print(type(ct), ct.dtype)
-
-iso_val=255
-verts,faces=get_contour_segments(iso_val,ct)
-
-celltypes = np.empty(faces.shape[0], dtype=np.uint8)
-celltypes[:] = vtk.VTK_TRIANGLE
-grid = pv.UnstructuredGrid(faces.ravel(), celltypes, verts)
-cleaned_grid = grid.clean()
-
-polydata = cleaned_grid.extract_surface()
-
-polydata.save('original_skull.stl')
-save_to_obj(verts, faces, "original_skull.obj")
