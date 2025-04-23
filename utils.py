@@ -173,5 +173,4 @@ def save_to_obj(verts, faces, filename):
             file.write(f"v {vert[0]} {vert[1]} {vert[2]}\n")
 
         for face in faces:
-            print(face)
             file.write(f"f {face[1] + 1} {face[2] + 1} {face[3] + 1}\n")

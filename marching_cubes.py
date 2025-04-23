@@ -5,11 +5,9 @@ import time
 from numpy import ndarray
 import pyvista as pv
 import vtk
-from stl import mesh
 
 from utils import from_folder_to_3d_grid, save_to_obj
 
-cache={}
 triTable =[
             [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
             [0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
@@ -280,14 +278,8 @@ def interpolation_value(v1: float, v2: float, t: float) -> Optional[float]:
            Returns 0.5 if `v1` equals `v2` and `t` equals `v1`.
            Returns None if `t` is outside the range defined by `v1` and `v2`, or if `v1` equals `v2` and `t` does not equal `v1`.
     """
-    if v1 == v2:
-        if t == v1:
-            return 0.5
-        else:
-            return None
-
-    if (t > v1 and t > v2) or (t < v1 and t < v2):
-        return None
+    if(abs(v1-v2) < 0.000001):
+        return float('NaN')
     
     return (t - v1) / (v2 - v1)
 
@@ -311,135 +303,95 @@ def linear_interpolation(edge: int, cells: ndarray, top: int, left: int, depth: 
     point = None
 
     if (edge == 0):
-        if (((left,top,depth),(left+1,top,depth)) in cache):
-            point = cache[((left,top,depth),(left+1,top,depth))]
-        else:
-            tval = interpolation_value (cells[left,top,depth],cells[left+1,top,depth],thres)
-            if (tval is None):
-                return None
-            point = (left+tval,top,depth)
-            cache[((left,top,depth),(left+1,top,depth))] = point
-        return point
+        tval = interpolation_value(cells[left,top,depth],cells[left+1,top,depth],thres)
+        if (tval is None):
+            return None
+
+        return (left+tval,top,depth)
 
     if (edge == 1):
-        if (((left+1,top,depth),(left+1,top+1,depth)) in cache):
-            point = cache[((left+1,top,depth),(left+1,top+1,depth))]
-        else:
-            tval = interpolation_value (cells[left+1,top,depth],cells[left+1,top+1,depth],thres)
-            if (tval is None):
-                return None
-            point = (left+1,top+tval,depth)
-            cache[((left+1,top,depth),(left+1,top+1,depth))] = point
-        return point
+        tval = interpolation_value(cells[left+1,top,depth],cells[left+1,top+1,depth],thres)
+        if (tval is None):
+            return None
+
+        return (left+1,top+tval,depth)
 
     if (edge == 2):
-        if (((left,top+1,depth),(left+1,top+1,depth)) in cache):
-            point = cache[((left,top+1,depth),(left+1,top+1,depth))]
-        else:
-            tval = interpolation_value (cells[left,top+1,depth],cells[left+1,top+1,depth],thres)
-            if (tval is None):
-                return None
-            point = (left+tval,top+1,depth)
-            cache[((left,top+1,depth),(left+1,top+1,depth))] = point
-        return point
+        tval = interpolation_value(cells[left,top+1,depth],cells[left+1,top+1,depth],thres)
+        if (tval is None):
+            return None
+        
+        return (left+tval,top+1,depth)
 
     if (edge == 3):
-        if (((left,top,depth),(left,top+1,depth)) in cache):
-            point = cache[((left,top,depth),(left,top+1,depth))]
-        else:
-            tval = interpolation_value (cells[left,top,depth],cells[left,top+1,depth],thres)
-            if (tval is None):
-                return None
-            point = (left,top+tval,depth)
-            cache[((left,top,depth),(left,top+1,depth))] = point
-        return point
+        tval = interpolation_value(cells[left,top,depth],cells[left,top+1,depth],thres)
+        if (tval is None):
+            return None
+
+        return (left,top+tval,depth)
 
     if (edge == 4):
-        if (((left,top,depth+1),(left+1,top,depth+1)) in cache):
-            point = cache[((left,top,depth+1),(left+1,top,depth+1))]
-        else:
-            tval = interpolation_value (cells[left,top,depth+1],cells[left+1,top,depth+1],thres)
-            if (tval is None):
-                return None
-            point = (left+tval,top,depth+1)
-            cache[((left,top,depth+1),(left+1,top,depth+1))] = point
+        tval = interpolation_value(cells[left,top,depth+1],cells[left+1,top,depth+1],thres)
+        if (tval is None):
+            return None
+        point = (left+tval,top,depth+1)
+
         return point
 
     if (edge == 5):
-        if (((left+1,top,depth+1),(left+1,top+1,depth+1)) in cache):
-            point = cache[((left+1,top,depth+1),(left+1,top+1,depth+1))]
-        else:
-            tval = interpolation_value (cells[left+1,top,depth+1],cells[left+1,top+1,depth+1],thres)
-            if (tval is None):
-                return None
-            point = (left+1,top+tval,depth+1)
-            cache[((left+1,top,depth+1),(left+1,top+1,depth+1))] = point
+        tval = interpolation_value(cells[left+1,top,depth+1],cells[left+1,top+1,depth+1],thres)
+        if (tval is None):
+            return None
+        point = (left+1,top+tval,depth+1)
+
         return point
 
     if (edge == 6):
-        if (((left,top+1,depth+1),(left+1,top+1,depth+1)) in cache):
-            point = cache[((left,top+1,depth+1),(left+1,top+1,depth+1))]
-        else:
-            tval = interpolation_value (cells[left,top+1,depth+1],cells[left+1,top+1,depth+1],thres)
-            if (tval is None):
-                return None
-            point = (left+tval,top+1,depth+1)
-            cache[((left,top+1,depth+1),(left+1,top+1,depth+1))] = point
+        tval = interpolation_value(cells[left,top+1,depth+1],cells[left+1,top+1,depth+1],thres)
+        if (tval is None):
+            return None
+        point = (left+tval,top+1,depth+1)
+
         return point
 
     if (edge == 7):
-        if (((left,top,depth+1),(left,top+1,depth+1)) in cache):
-            point = cache[((left,top,depth+1),(left,top+1,depth+1))]
-        else:
-            tval = interpolation_value (cells[left,top,depth+1],cells[left,top+1,depth+1],thres)
-            if (tval is None):
-                return None
-            point = (left,top+tval,depth+1)
-            cache[((left,top,depth+1),(left,top+1,depth+1))] = point
+        tval = interpolation_value(cells[left,top,depth+1],cells[left,top+1,depth+1],thres)
+        if (tval is None):
+            return None
+        point = (left,top+tval,depth+1)
+
         return point
 
     if (edge == 8):
-        if (((left,top,depth),(left,top,depth+1)) in cache):
-            point = cache[((left,top,depth),(left,top,depth+1))]
-        else:
-            tval = interpolation_value (cells[left,top,depth],cells[left,top,depth+1],thres)
-            if (tval is None):
-                return None
-            point = (left,top,depth+tval)
-            cache[((left,top,depth),(left,top,depth+1))] = point
+        tval = interpolation_value(cells[left,top,depth],cells[left,top,depth+1],thres)
+        if (tval is None):
+            return None
+        point = (left,top,depth+tval)
+
         return point
 
     if (edge == 9):
-        if (((left+1,top,depth),(left+1,top,depth+1)) in cache):
-            point = cache[((left+1,top,depth),(left+1,top,depth+1))]
-        else:
-            tval = interpolation_value (cells[left+1,top,depth],cells[left+1,top,depth+1],thres)
-            if (tval is None):
-                return None
-            point = (left+1,top,depth+tval)
-            cache[((left+1,top,depth),(left+1,top,depth+1))] = point
+        tval = interpolation_value(cells[left+1,top,depth],cells[left+1,top,depth+1],thres)
+        if (tval is None):
+            return None
+        point = (left+1,top,depth+tval)
+
         return point
 
     if (edge == 10):
-        if (((left+1,top+1,depth),(left+1,top+1,depth+1)) in cache):
-            point = cache[((left+1,top+1,depth),(left+1,top+1,depth+1))]
-        else:
-            tval = interpolation_value (cells[left+1,top+1,depth],cells[left+1,top+1,depth+1],thres)
-            if (tval is None):
-                return None
-            point = (left+1,top+1,depth+tval)
-            cache[((left+1,top+1,depth),(left+1,top+1,depth+1))] = point
+        tval = interpolation_value(cells[left+1,top+1,depth],cells[left+1,top+1,depth+1],thres)
+        if (tval is None):
+            return None
+        point = (left+1,top+1,depth+tval)
+
         return point
 
     if (edge == 11):
-        if (((left,top+1,depth),(left,top+1,depth+1)) in cache):
-            point = cache[((left,top+1,depth),(left,top+1,depth+1))]
-        else:
-            tval = interpolation_value (cells[left,top+1,depth],cells[left,top+1,depth+1],thres)
-            if (tval is None):
-                return None
-            point = (left,top+1,depth+tval)
-            cache[((left,top+1,depth),(left,top+1,depth+1))] = point
+        tval = interpolation_value(cells[left,top+1,depth],cells[left,top+1,depth+1],thres)
+        if (tval is None):
+            return None
+        point = (left,top+1,depth+tval)
+
         return point
 
 
@@ -496,29 +448,17 @@ def get_contour_segments(thres, cube_matrix):
                 k = 0
                 while case_val[k] != -1:
                     interpolation_start = time.perf_counter()
-                    v1 = cache.get((left, top, depth, case_val[k]))
-                    if v1 is None:
-                        v1 = linear_interpolation(case_val[k], cube_matrix, top, left, depth, thres)
-                        if v1 is not None:
-                            cache[(left, top, depth, case_val[k])] = v1
+                    v1 = linear_interpolation(case_val[k], cube_matrix, top, left, depth, thres)
                     if v1 is None:
                         k += 3
                         continue
 
-                    v2 = cache.get((left, top, depth, case_val[k+1]))
-                    if v2 is None:
-                        v2 = linear_interpolation(case_val[k+1], cube_matrix, top, left, depth, thres)
-                        if v2 is not None:
-                            cache[(left, top, depth, case_val[k+1])] = v2
+                    v2 = linear_interpolation(case_val[k+1], cube_matrix, top, left, depth, thres)
                     if v2 is None:
                         k += 3
                         continue
 
-                    v3 = cache.get((left, top, depth, case_val[k+2]))
-                    if v3 is None:
-                        v3 = linear_interpolation(case_val[k+2], cube_matrix, top, left, depth, thres)
-                        if v3 is not None:
-                            cache[(left, top, depth, case_val[k+2])] = v3
+                    v3 = linear_interpolation(case_val[k+2], cube_matrix, top, left, depth, thres)
                     if v3 is None:
                         k += 3
                         continue
@@ -533,9 +473,9 @@ def get_contour_segments(thres, cube_matrix):
                             vertex_array[v] = [vertex_counter, v[0], v[1], v[2]]
                             tmp[vi+1] = vertex_counter
                             vertex_counter += 1
+                            print(f"Generated vertex: {vertex_array[v]}")
                         else:
                             tmp[vi+1] = vertex_array[v][0]
-                    print(f"Generated face: {tmp}")
                     face_array.append(tmp)
                     triangle_gen_time += time.perf_counter() - triangle_start
     overall_end = time.perf_counter()
@@ -545,26 +485,17 @@ def get_contour_segments(thres, cube_matrix):
     vertex_array = np.array(list(vertex_array.values()))
     return vertex_array[:,1:], np.array(face_array)
 
-ct = from_folder_to_3d_grid('original_png_8bit', 688)
+ct = from_folder_to_3d_grid('median_filtered_final', 687)
 print(ct.shape)
 print(type(ct), ct.dtype)
 
-iso_val=150
+iso_val=255
 verts,faces=get_contour_segments(iso_val,ct)
 
 celltypes = np.empty(faces.shape[0], dtype=np.uint8)
 celltypes[:] = vtk.VTK_TRIANGLE
 grid = pv.UnstructuredGrid(faces.ravel(), celltypes, verts)
 cleaned_grid = grid.clean()
-
-plotter = pv.Plotter()
-plotter.add_mesh(cleaned_grid, color='white')
-#plotter.show()
-
-stl_mesh = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
-for i, f in enumerate(faces):
-    for j in range(3):
-        stl_mesh.vectors[i][j] = verts[f[j], :]
 
 polydata = cleaned_grid.extract_surface()
 
